@@ -1,0 +1,39 @@
+name: full
+
+on:
+    push:
+        branches: ["master"]
+    pull_request:
+        branches: ["master"]
+
+env:
+    CARGO_TERM_COLOR: always
+
+jobs:
+    # Build for std plaforms
+    std:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v3
+            - name: Debug
+              run: cargo build
+            - name: Release
+              run: cargo build --release
+            - name: Debug test
+              run: cargo test
+            - name: Release test
+              run: cargo test --release
+
+    # Build for no_std plaforms
+    no_std:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v3
+            - name: Debug
+              run: cargo build --features no_std
+            - name: Release
+              run: cargo build --release --features no_std
+            - name: Debug test
+              run: cargo test --features no_std
+            - name: Release test
+              run: cargo test --release --features no_std
