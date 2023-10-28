@@ -22,3 +22,6 @@ pub enum ErrorCode {
     #[default]
     Unknown,
 }
+
+// Block cipher algorithms
+pub mod block_cipher;
