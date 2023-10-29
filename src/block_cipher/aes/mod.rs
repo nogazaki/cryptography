@@ -2,7 +2,7 @@
 //!
 //! [AES]: https://en.wikipedia.org/wiki/Advanced_Encryption_Standard
 
-use crate::ErrorCode;
+use super::*;
 
 /// Rijndael forward look up table
 const S_BOX: [u8; 256] = [
@@ -44,7 +44,7 @@ const S_BOX_INV: [u8; 256] = [
     0x17, 0x2b, 0x04, 0x7e, 0xba, 0x77, 0xd6, 0x26, 0xe1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0c, 0x7d,
 ];
 
-pub(super) const AES_BLOCK_SIZE_BYTES: usize = 16;
+const AES_BLOCK_SIZE_BYTES: usize = 16;
 
 /// Round key addition
 ///
@@ -312,11 +312,11 @@ macro_rules! define_and_implement {
         /// assert!(aes.is_ok());
         /// ```
         ///
-        #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+        #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
         pub struct $name {
             key: [u32; $key_size / 8 + 28],
         }
-        impl crate::block_cipher::KeyInit for $name {
+        impl KeyInit for $name {
             /// Initialize and schedule a key for the algorithm
             fn new(key: &[u8]) -> Result<Self, ErrorCode> {
                 if key.len() != $key_size / 8 {
@@ -328,24 +328,46 @@ macro_rules! define_and_implement {
                 Ok(Self { key: round_keys })
             }
         }
-        impl crate::block_cipher::BlockCipher for $name {
-            fn encrypt_block(&self, block: &mut [u8]) -> Result<(), ErrorCode> {
-                let block: &mut [u8; AES_BLOCK_SIZE_BYTES] = match block.try_into() {
-                    Ok(data) => data,
-                    Err(_) => return Err(ErrorCode::InvalidArgument),
-                };
+        impl BlockCipher for $name {
+            const BLOCK_SIZE: usize = AES_BLOCK_SIZE_BYTES;
 
-                aes_encrypt_block(block, &self.key);
-                Ok(())
+            fn encrypt_block(
+                &self,
+                in_block: &[u8],
+                out_block: &mut [u8],
+            ) -> Result<usize, ErrorCode> {
+                if (in_block.len() != AES_BLOCK_SIZE_BYTES)
+                    | (out_block.len() < AES_BLOCK_SIZE_BYTES)
+                {
+                    Err(ErrorCode::InvalidArgument)
+                } else {
+                    let mut block = [0u8; AES_BLOCK_SIZE_BYTES];
+                    block.clone_from_slice(in_block);
+
+                    aes_encrypt_block(&mut block, &self.key);
+                    out_block[..AES_BLOCK_SIZE_BYTES].clone_from_slice(&block);
+
+                    Ok(AES_BLOCK_SIZE_BYTES)
+                }
             }
-            fn decrypt_block(&self, block: &mut [u8]) -> Result<(), ErrorCode> {
-                let block: &mut [u8; AES_BLOCK_SIZE_BYTES] = match block.try_into() {
-                    Ok(data) => data,
-                    Err(_) => return Err(ErrorCode::InvalidArgument),
-                };
+            fn decrypt_block(
+                &self,
+                in_block: &[u8],
+                out_block: &mut [u8],
+            ) -> Result<usize, ErrorCode> {
+                if (in_block.len() != AES_BLOCK_SIZE_BYTES)
+                    | (out_block.len() < AES_BLOCK_SIZE_BYTES)
+                {
+                    Err(ErrorCode::InvalidArgument)
+                } else {
+                    let mut block = [0u8; AES_BLOCK_SIZE_BYTES];
+                    block.clone_from_slice(in_block);
 
-                aes_decrypt_block(block, &self.key);
-                Ok(())
+                    aes_decrypt_block(&mut block, &self.key);
+                    out_block[..AES_BLOCK_SIZE_BYTES].clone_from_slice(&block);
+
+                    Ok(AES_BLOCK_SIZE_BYTES)
+                }
             }
         }
         impl Drop for $name {
@@ -362,8 +384,7 @@ define_and_implement!(Aes256, 256);
 
 /// Test module
 #[cfg(test)]
-mod test {
-    use super::super::{BlockCipher, KeyInit};
+mod test_aes {
     use super::*;
 
     #[test]
@@ -408,7 +429,7 @@ mod test {
     }
 
     #[test]
-    fn test_sub_bytes() {
+    fn test_sub_bytes_and_inverse_sub_bytes() {
         let original = [0x193de3be, 0xa0f4e22b, 0x9ac68d2a, 0xe9f84808];
         let substituted = [0xd42711ae, 0xe0bf98f1, 0xb8b45de5, 0x1e415230];
 
@@ -421,7 +442,7 @@ mod test {
     }
 
     #[test]
-    fn test_shift_rows() {
+    fn test_shift_rows_and_inverse_shift_row() {
         let original = [0xd42711ae, 0xe0bf98f1, 0xb8b45de5, 0x1e415230];
         let shifted = [0xd4bf5d30, 0xe0b452ae, 0xb84111f1, 0x1e2798e5];
 
@@ -434,7 +455,7 @@ mod test {
     }
 
     #[test]
-    fn test_mix_columns() {
+    fn test_mix_columns_and_inverse_mix_column() {
         let original = [0xd4bf5d30, 0xe0b452ae, 0xb84111f1, 0x1e2798e5];
         let mixed = [0x046681e5, 0xe0cb199a, 0x48f8d37a, 0x2806264c];
 
@@ -450,7 +471,7 @@ mod test {
     fn test_key_expansion() {
         // AES-128 key expansion
         {
-            let cipher_key = [
+            let key = [
                 0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6, 0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf,
                 0x4f, 0x3c,
             ];
@@ -465,12 +486,12 @@ mod test {
             ];
 
             assert!(
-                Aes128::new(&cipher_key[..1]).is_err_and(|err| err == ErrorCode::InvalidArgument),
+                Aes128::new(&key[..1]).is_err_and(|err| err == ErrorCode::InvalidArgument),
                 "Key too short, initialization should have failed"
             );
             assert!(
-                Aes128::new(&cipher_key).is_ok_and(|aes| aes.key == expanded_cipher_key),
-                "Key expansion operation failed or result was incorrect"
+                Aes128::new(&key).is_ok_and(|aes| aes.key == expanded_cipher_key),
+                "Key expansion operation failed unexpectedly or result was incorrect"
             );
         }
         // AES-192 key expansion
@@ -496,7 +517,7 @@ mod test {
             );
             assert!(
                 Aes192::new(&cipher_key).is_ok_and(|aes| aes.key == expanded_cipher_key),
-                "Key expansion operation failed or result was incorrect"
+                "Key expansion operation failed unexpectedly or result was incorrect"
             );
         }
         // AES-256 key expansion
@@ -524,14 +545,16 @@ mod test {
             );
             assert!(
                 Aes256::new(&cipher_key).is_ok_and(|aes| aes.key == expanded_cipher_key),
-                "Key expansion operation failed or result was incorrect"
+                "Key expansion operation failed unexpectedly or result was incorrect"
             );
         }
     }
 
     #[test]
-    fn test_aes() {
-        let cipher_key = [
+    fn test_aes_error_handling() {
+        const DUMMY_DATA: u8 = 0xAA;
+
+        let key = [
             0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6, 0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf,
             0x4f, 0x3c,
         ];
@@ -544,44 +567,54 @@ mod test {
             0x0b, 0x32,
         ];
 
-        let mut block = plain_text.clone();
-        let aes = Aes128::new(&cipher_key).unwrap();
+        let mut block = [DUMMY_DATA; AES_BLOCK_SIZE_BYTES + 1];
+        let aes = Aes128::new(&key).expect("Key buffer is valid");
 
-        let result = aes.encrypt_block(&mut block);
-        assert!(result.is_ok());
-        assert_eq!(block, cipher_text);
+        let result = aes.encrypt_block(&plain_text, &mut block);
+        assert!(result.is_ok_and(|count| block[..count] == cipher_text));
+        assert_eq!(block[AES_BLOCK_SIZE_BYTES], DUMMY_DATA);
 
-        let result = aes.decrypt_block(&mut block);
-        assert!(result.is_ok());
-        assert_eq!(block, plain_text);
+        let result = aes.decrypt_block(&cipher_text, &mut block);
+        assert!(result.is_ok_and(|count| block[..count] == plain_text));
+        assert_eq!(block[AES_BLOCK_SIZE_BYTES], DUMMY_DATA);
 
-        let result = aes.encrypt_block(&mut block[..1]);
+        let mut block = key.clone();
+        let result = aes.encrypt_block(&plain_text[..1], &mut block);
         assert!(
             result.is_err_and(|err| err == ErrorCode::InvalidArgument),
             "Incorrect block length, encryption should have failed"
         );
-        assert_eq!(
-            block, plain_text,
-            "block content should have not been modified"
-        );
-        let result = aes.decrypt_block(&mut block[..1]);
+        assert_eq!(block, key, "Block content should have not been modified");
+
+        let result = aes.encrypt_block(&plain_text, &mut block[..1]);
         assert!(
             result.is_err_and(|err| err == ErrorCode::InvalidArgument),
-            "Incorrect block length, decryption should have failed"
+            "Out buffer too small, encryption should have failed"
         );
-        assert_eq!(
-            block, plain_text,
-            "block content should have not been modified"
+        assert_eq!(block, key, "Block content should have not been modified");
+
+        let result = aes.decrypt_block(&cipher_text[..1], &mut block);
+        assert!(
+            result.is_err_and(|err| err == ErrorCode::InvalidArgument),
+            "Incorrect block length, encryption should have failed"
         );
+        assert_eq!(block, key, "Block content should have not been modified");
+
+        let result = aes.decrypt_block(&cipher_text, &mut block[..1]);
+        assert!(
+            result.is_err_and(|err| err == ErrorCode::InvalidArgument),
+            "Out buffer too small, encryption should have failed"
+        );
+        assert_eq!(block, key, "Block content should have not been modified");
     }
 
     #[test]
-    fn test_aes_extended() {
+    fn test_aes_correctness() {
         let plain_text = [
             0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd,
             0xee, 0xff,
         ];
-        let cipher_key = [
+        let key = [
             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d,
             0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b,
             0x1c, 0x1d, 0x1e, 0x1f,
@@ -594,13 +627,13 @@ mod test {
                 0xc5, 0x5a,
             ];
 
-            let mut block = plain_text.clone();
-            let aes = Aes128::new(&cipher_key[0..16]).unwrap();
+            let mut block = [0u8; AES_BLOCK_SIZE_BYTES];
+            let aes = Aes128::new(&key[0..16]).expect("Key buffer is valid");
 
-            let result = aes.encrypt_block(&mut block);
+            let result = aes.encrypt_block(&plain_text, &mut block);
             assert!(result.is_ok());
             assert_eq!(block, cipher_text);
-            let result = aes.decrypt_block(&mut block);
+            let result = aes.decrypt_block(&cipher_text, &mut block);
             assert!(result.is_ok());
             assert_eq!(block, plain_text);
         }
@@ -611,13 +644,13 @@ mod test {
                 0x71, 0x91,
             ];
 
-            let mut block = plain_text.clone();
-            let aes = Aes192::new(&cipher_key[..24]).unwrap();
+            let mut block = [0u8; AES_BLOCK_SIZE_BYTES];
+            let aes = Aes192::new(&key[..24]).expect("Key buffer is valid");
 
-            let result = aes.encrypt_block(&mut block);
+            let result = aes.encrypt_block(&plain_text, &mut block);
             assert!(result.is_ok());
             assert_eq!(block, cipher_text);
-            let result = aes.decrypt_block(&mut block);
+            let result = aes.decrypt_block(&cipher_text, &mut block);
             assert!(result.is_ok());
             assert_eq!(block, plain_text);
         }
@@ -628,13 +661,13 @@ mod test {
                 0x60, 0x89,
             ];
 
-            let mut block = plain_text.clone();
-            let aes = Aes256::new(&cipher_key[..32]).unwrap();
+            let mut block = [0u8; AES_BLOCK_SIZE_BYTES];
+            let aes = Aes256::new(&key[..32]).expect("Key buffer is valid");
 
-            let result = aes.encrypt_block(&mut block);
+            let result = aes.encrypt_block(&plain_text, &mut block);
             assert!(result.is_ok());
             assert_eq!(block, cipher_text);
-            let result = aes.decrypt_block(&mut block);
+            let result = aes.decrypt_block(&cipher_text, &mut block);
             assert!(result.is_ok());
             assert_eq!(block, plain_text);
         }
