@@ -131,7 +131,7 @@ fn inv_shift_rows(state: &mut [u32; 4]) {
 ///
 /// * return the product `a` * `b` in G(2^8)
 ///
-pub(self) fn g_256_multiply(mut a: u8, mut b: u8) -> u8 {
+fn g_256_multiply(mut a: u8, mut b: u8) -> u8 {
     let mut product = 0u8;
 
     for _ in 0..8 {
@@ -564,22 +564,6 @@ mod test {
 
     #[test]
     fn correctness() {
-        {
-            let key = [0u8; AES_BLOCK_SIZE_BYTES];
-            let mut block = [0u8; AES_BLOCK_SIZE_BYTES];
-            let mut result = [0u8; AES_BLOCK_SIZE_BYTES];
-
-            let aes = Aes128::new(&key).expect("Key buffer is valid");
-
-            aes.encrypt_block(&block, &mut result);
-            let _ = aes.encrypt_block_in_place(&mut block);
-            assert!(result == block);
-
-            aes.encrypt_block(&block, &mut result);
-            let _ = aes.encrypt_block_in_place(&mut block);
-            assert!(result == block);
-        }
-
         let plain_text = [
             0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd,
             0xee, 0xff,
@@ -595,11 +579,18 @@ mod test {
             0x69, 0xc4, 0xe0, 0xd8, 0x6a, 0x7b, 0x04, 0x30, 0xd8, 0xcd, 0xb7, 0x80, 0x70, 0xb4,
             0xc5, 0x5a,
         ];
+        let mut in_place_block = plain_text.clone();
         let mut block = plain_text.clone();
         let aes = Aes128::new(&key[0..16]).expect("Key buffer is valid");
-        aes.encrypt_block_in_place(&mut block);
+
+        aes.encrypt_block_in_place(&mut in_place_block);
+        assert_eq!(in_place_block, cipher_text);
+        aes.encrypt_block(&plain_text, &mut block);
         assert_eq!(block, cipher_text);
-        aes.decrypt_block_in_place(&mut block);
+
+        aes.decrypt_block_in_place(&mut in_place_block);
+        assert_eq!(in_place_block, plain_text);
+        aes.decrypt_block(&cipher_text, &mut block);
         assert_eq!(block, plain_text);
 
         // AES-192 cipher
@@ -607,11 +598,18 @@ mod test {
             0xdd, 0xa9, 0x7c, 0xa4, 0x86, 0x4c, 0xdf, 0xe0, 0x6e, 0xaf, 0x70, 0xa0, 0xec, 0x0d,
             0x71, 0x91,
         ];
+        let mut in_place_block = plain_text.clone();
         let mut block = plain_text.clone();
         let aes = Aes192::new(&key[0..24]).expect("Key buffer is valid");
-        aes.encrypt_block_in_place(&mut block);
+
+        aes.encrypt_block_in_place(&mut in_place_block);
+        assert_eq!(in_place_block, cipher_text);
+        aes.encrypt_block(&plain_text, &mut block);
         assert_eq!(block, cipher_text);
-        aes.decrypt_block_in_place(&mut block);
+
+        aes.decrypt_block_in_place(&mut in_place_block);
+        assert_eq!(in_place_block, plain_text);
+        aes.decrypt_block(&cipher_text, &mut block);
         assert_eq!(block, plain_text);
 
         // AES-256 cipher
@@ -619,11 +617,18 @@ mod test {
             0x8e, 0xa2, 0xb7, 0xca, 0x51, 0x67, 0x45, 0xbf, 0xea, 0xfc, 0x49, 0x90, 0x4b, 0x49,
             0x60, 0x89,
         ];
+        let mut in_place_block = plain_text.clone();
         let mut block = plain_text.clone();
         let aes = Aes256::new(&key[0..32]).expect("Key buffer is valid");
-        aes.encrypt_block_in_place(&mut block);
+
+        aes.encrypt_block_in_place(&mut in_place_block);
+        assert_eq!(in_place_block, cipher_text);
+        aes.encrypt_block(&plain_text, &mut block);
         assert_eq!(block, cipher_text);
-        aes.decrypt_block_in_place(&mut block);
+
+        aes.decrypt_block_in_place(&mut in_place_block);
+        assert_eq!(in_place_block, plain_text);
+        aes.decrypt_block(&cipher_text, &mut block);
         assert_eq!(block, plain_text);
     }
 }
