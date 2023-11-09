@@ -5,6 +5,7 @@ use crate::ErrorCode;
 pub mod aes;
 
 pub mod cbc;
+pub mod cfb;
 pub mod ecb;
 pub mod pcbc;
 

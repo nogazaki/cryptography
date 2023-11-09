@@ -94,7 +94,7 @@ where
             return Err(ErrorCode::InsufficientMemory);
         }
 
-        for i in (0..plain_text.len()).step_by(T::BLOCK_SIZE) {
+        for i in (0..cipher_text.len()).step_by(T::BLOCK_SIZE) {
             let mut block = [0u8; T::BLOCK_SIZE];
             self.engine.decrypt_block(
                 (&cipher_text[i..i + T::BLOCK_SIZE])
