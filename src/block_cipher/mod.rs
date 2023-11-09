@@ -4,6 +4,7 @@ use crate::ErrorCode;
 // #[cfg(feature = "aes")]
 pub mod aes;
 
+pub mod cbc;
 pub mod ecb;
 
 pub trait KeyInit {
@@ -26,4 +27,12 @@ pub trait BlockCipher {
     fn encrypt_block(&self, block: &[u8; Self::BLOCK_SIZE], out: &mut [u8; Self::BLOCK_SIZE]);
     /// Decrypt a block
     fn decrypt_block(&self, block: &[u8; Self::BLOCK_SIZE], out: &mut [u8; Self::BLOCK_SIZE]);
+}
+
+pub trait Encrypt {
+    fn encrypt(&mut self, plain_text: &[u8], cipher_text: &mut [u8]) -> Result<(), ErrorCode>;
+}
+
+pub trait Decrypt {
+    fn decrypt(&mut self, cipher_text: &[u8], plain_text: &mut [u8]) -> Result<(), ErrorCode>;
 }
