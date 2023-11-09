@@ -30,9 +30,9 @@ pub trait BlockCipher {
 }
 
 pub trait Encrypt {
-    fn encrypt(&mut self, plain_text: &[u8], cipher_text: &mut [u8]) -> Result<(), ErrorCode>;
+    fn encrypt(self, plain_text: &[u8], cipher_text: &mut [u8]) -> Result<(), ErrorCode>;
 }
 
 pub trait Decrypt {
-    fn decrypt(&mut self, cipher_text: &[u8], plain_text: &mut [u8]) -> Result<(), ErrorCode>;
+    fn decrypt(self, cipher_text: &[u8], plain_text: &mut [u8]) -> Result<(), ErrorCode>;
 }

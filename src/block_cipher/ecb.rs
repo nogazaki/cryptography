@@ -18,7 +18,7 @@ impl<T: BlockCipherInit + BlockCipher> Encrypt for Encryptor<T>
 where
     [(); T::BLOCK_SIZE]:,
 {
-    fn encrypt(&mut self, plain_text: &[u8], cipher_text: &mut [u8]) -> Result<(), ErrorCode> {
+    fn encrypt(self, plain_text: &[u8], cipher_text: &mut [u8]) -> Result<(), ErrorCode> {
         if plain_text.len() % T::BLOCK_SIZE != 0 {
             return Err(ErrorCode::InvalidArgument);
         }
@@ -60,7 +60,7 @@ impl<T: BlockCipherInit + BlockCipher> Decrypt for Decryptor<T>
 where
     [(); T::BLOCK_SIZE]:,
 {
-    fn decrypt(&mut self, cipher_text: &[u8], plain_text: &mut [u8]) -> Result<(), ErrorCode> {
+    fn decrypt(self, cipher_text: &[u8], plain_text: &mut [u8]) -> Result<(), ErrorCode> {
         if cipher_text.len() % T::BLOCK_SIZE != 0 {
             return Err(ErrorCode::InvalidArgument);
         }
@@ -104,7 +104,7 @@ mod test {
 
         let plain_text = [0xAA; 32];
         let mut cipher_text = plain_text.clone();
-        let mut encryptor = Encryptor::<Aes256>::new(&key).expect("Key buffer is valid");
+        let encryptor = Encryptor::<Aes256>::new(&key).expect("Key buffer is valid");
         let result = encryptor.encrypt(&plain_text[0..15], &mut cipher_text);
         assert!(
             result.is_err_and(|err| err == ErrorCode::InvalidArgument),
@@ -117,7 +117,7 @@ mod test {
 
         let cipher_text = [0xAA; 32];
         let mut plain_text = cipher_text.clone();
-        let mut decryptor = Decryptor::<Aes256>::new(&key).expect("Key buffer is valid");
+        let decryptor = Decryptor::<Aes256>::new(&key).expect("Key buffer is valid");
         let result = decryptor.decrypt(&cipher_text[0..15], &mut plain_text);
         assert!(
             result.is_err_and(|err| err == ErrorCode::InvalidArgument),
@@ -166,8 +166,8 @@ mod test {
             0x9f, 0xc5, 0x21, 0xb7, 0x89, 0xa7, 0x75, 0x24, 0x40, 0x4f, 0x43, 0xe0, 0x0f, 0x20,
             0xb3, 0xb7, 0x7b, 0x93, 0x8b, 0x1a,
         ];
-        let mut encryptor = Encryptor::<Aes128>::new(&key).expect("Key buffer is valid");
-        let mut decryptor = Decryptor::<Aes128>::new(&key).expect("Key buffer is valid");
+        let encryptor = Encryptor::<Aes128>::new(&key).expect("Key buffer is valid");
+        let decryptor = Decryptor::<Aes128>::new(&key).expect("Key buffer is valid");
         buffer.fill(0);
         let result = encryptor.encrypt(&plain_text, &mut buffer);
         assert!(result.is_ok_and(|_| buffer == cipher_text));
@@ -208,8 +208,8 @@ mod test {
             0x69, 0x52, 0x53, 0x64, 0xfe, 0x13, 0x9a, 0xa1, 0xfd, 0x62, 0x05, 0x46, 0x68, 0xc5,
             0x8f, 0x23, 0xf1, 0xf9, 0x4c, 0xfd,
         ];
-        let mut encryptor = Encryptor::<Aes192>::new(&key).expect("Key buffer is valid");
-        let mut decryptor = Decryptor::<Aes192>::new(&key).expect("Key buffer is valid");
+        let encryptor = Encryptor::<Aes192>::new(&key).expect("Key buffer is valid");
+        let decryptor = Decryptor::<Aes192>::new(&key).expect("Key buffer is valid");
         buffer.fill(0);
         let result = encryptor.encrypt(&plain_text, &mut buffer);
         assert!(result.is_ok_and(|_| buffer == cipher_text));
@@ -251,8 +251,8 @@ mod test {
             0x09, 0xfc, 0x63, 0x9d, 0x1b, 0x65, 0xfc, 0xb6, 0x5e, 0x64, 0x3e, 0xdb, 0x0a, 0xd1,
             0xf0, 0x9c, 0xfe, 0x9c, 0xee, 0x4a,
         ];
-        let mut encryptor = Encryptor::<Aes256>::new(&key).expect("Key buffer is valid");
-        let mut decryptor = Decryptor::<Aes256>::new(&key).expect("Key buffer is valid");
+        let encryptor = Encryptor::<Aes256>::new(&key).expect("Key buffer is valid");
+        let decryptor = Decryptor::<Aes256>::new(&key).expect("Key buffer is valid");
         buffer.fill(0);
         let result = encryptor.encrypt(&plain_text, &mut buffer);
         assert!(result.is_ok_and(|_| buffer == cipher_text));

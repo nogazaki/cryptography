@@ -27,7 +27,7 @@ impl<T: BlockCipherInit + BlockCipher> Encrypt for Encryptor<T>
 where
     [(); T::BLOCK_SIZE]:,
 {
-    fn encrypt(&mut self, plain_text: &[u8], cipher_text: &mut [u8]) -> Result<(), ErrorCode> {
+    fn encrypt(mut self, plain_text: &[u8], cipher_text: &mut [u8]) -> Result<(), ErrorCode> {
         if plain_text.len() % T::BLOCK_SIZE != 0 {
             return Err(ErrorCode::InvalidArgument);
         }
@@ -36,19 +36,25 @@ where
             return Err(ErrorCode::InsufficientMemory);
         }
 
-        let mut context = self.iv.clone();
         for i in (0..plain_text.len()).step_by(T::BLOCK_SIZE) {
-            context
+            self.iv
                 .iter_mut()
                 .zip(plain_text[i..i + T::BLOCK_SIZE].iter())
                 .for_each(|(prev, &plain)| *prev ^= plain);
 
-            self.engine.encrypt_block_in_place(&mut context);
-
-            cipher_text[i..i + T::BLOCK_SIZE].clone_from_slice(&context);
+            self.engine.encrypt_block_in_place(&mut self.iv);
+            cipher_text[i..i + T::BLOCK_SIZE].clone_from_slice(&self.iv);
         }
 
         Ok(())
+    }
+}
+impl<T: BlockCipherInit + BlockCipher> Drop for Encryptor<T>
+where
+    [(); T::BLOCK_SIZE]:,
+{
+    fn drop(&mut self) {
+        self.iv.fill(0);
     }
 }
 
@@ -79,7 +85,7 @@ impl<T: BlockCipherInit + BlockCipher> Decrypt for Decryptor<T>
 where
     [(); T::BLOCK_SIZE]:,
 {
-    fn decrypt(&mut self, cipher_text: &[u8], plain_text: &mut [u8]) -> Result<(), ErrorCode> {
+    fn decrypt(mut self, cipher_text: &[u8], plain_text: &mut [u8]) -> Result<(), ErrorCode> {
         if cipher_text.len() % T::BLOCK_SIZE != 0 {
             return Err(ErrorCode::InvalidArgument);
         }
@@ -88,7 +94,6 @@ where
             return Err(ErrorCode::InsufficientMemory);
         }
 
-        let mut context = self.iv.clone();
         for i in (0..plain_text.len()).step_by(T::BLOCK_SIZE) {
             let mut block = [0u8; T::BLOCK_SIZE];
             self.engine.decrypt_block(
@@ -100,13 +105,22 @@ where
 
             plain_text[i..i + T::BLOCK_SIZE]
                 .iter_mut()
-                .zip(block.iter().zip(context.iter()))
-                .for_each(|(plain, (&b, &c))| *plain = b ^ c);
+                .zip(self.iv.iter())
+                .zip(block.iter())
+                .for_each(|((plain, &b), &c)| *plain = b ^ c);
 
-            context.clone_from_slice(&cipher_text[i..i + T::BLOCK_SIZE]);
+            self.iv.clone_from_slice(&cipher_text[i..i + T::BLOCK_SIZE]);
         }
 
         Ok(())
+    }
+}
+impl<T: BlockCipherInit + BlockCipher> Drop for Decryptor<T>
+where
+    [(); T::BLOCK_SIZE]:,
+{
+    fn drop(&mut self) {
+        self.iv.fill(0);
     }
 }
 
@@ -133,7 +147,7 @@ mod test {
 
         let plain_text = [0xAA; 32];
         let mut cipher_text = plain_text.clone();
-        let mut encryptor = Encryptor::<Aes256>::new(&key, None).expect("Key buffer is valid");
+        let encryptor = Encryptor::<Aes256>::new(&key, None).expect("Key buffer is valid");
         let result = encryptor.encrypt(&plain_text[0..15], &mut cipher_text);
         assert!(
             result.is_err_and(|err| err == ErrorCode::InvalidArgument),
@@ -146,7 +160,7 @@ mod test {
 
         let cipher_text = [0xAA; 32];
         let mut plain_text = cipher_text.clone();
-        let mut decryptor = Decryptor::<Aes256>::new(&key, None).expect("Key buffer is valid");
+        let decryptor = Decryptor::<Aes256>::new(&key, None).expect("Key buffer is valid");
         let result = decryptor.decrypt(&cipher_text[0..15], &mut plain_text);
         assert!(
             result.is_err_and(|err| err == ErrorCode::InvalidArgument),
@@ -209,8 +223,8 @@ mod test {
             0xa9, 0x4b, 0x63, 0x19, 0x33, 0xbb, 0xe5, 0x77, 0x62, 0x43, 0x80, 0x85, 0x0f, 0x11,
             0x74, 0x35, 0xa0, 0x35, 0x5b, 0x2b,
         ];
-        let mut encryptor = Encryptor::<Aes128>::new(&key, Some(&iv)).expect("Key buffer is valid");
-        let mut decryptor = Decryptor::<Aes128>::new(&key, Some(&iv)).expect("Key buffer is valid");
+        let encryptor = Encryptor::<Aes128>::new(&key, Some(&iv)).expect("Key buffer is valid");
+        let decryptor = Decryptor::<Aes128>::new(&key, Some(&iv)).expect("Key buffer is valid");
         buffer.fill(0);
         let result = encryptor.encrypt(&plain_text, &mut buffer);
         assert!(result.is_ok_and(|_| buffer == cipher_text));
@@ -255,8 +269,8 @@ mod test {
             0x7a, 0xd1, 0xb7, 0x68, 0x4a, 0xd3, 0x3c, 0x0d, 0x92, 0x73, 0x94, 0x51, 0xac, 0x87,
             0xf3, 0x9f, 0xf8, 0xc3, 0x1b, 0x84,
         ];
-        let mut encryptor = Encryptor::<Aes192>::new(&key, Some(&iv)).expect("Key buffer is valid");
-        let mut decryptor = Decryptor::<Aes192>::new(&key, Some(&iv)).expect("Key buffer is valid");
+        let encryptor = Encryptor::<Aes192>::new(&key, Some(&iv)).expect("Key buffer is valid");
+        let decryptor = Decryptor::<Aes192>::new(&key, Some(&iv)).expect("Key buffer is valid");
         buffer.fill(0);
         let result = encryptor.encrypt(&plain_text, &mut buffer);
         assert!(result.is_ok_and(|_| buffer == cipher_text));
@@ -302,8 +316,8 @@ mod test {
             0xd7, 0xc1, 0x3f, 0xe2, 0x4f, 0xc4, 0x47, 0x27, 0x59, 0x65, 0xdb, 0x9e, 0x4d, 0x37,
             0xfb, 0xc9, 0x30, 0x44, 0x48, 0xcd,
         ];
-        let mut encryptor = Encryptor::<Aes256>::new(&key, Some(&iv)).expect("Key buffer is valid");
-        let mut decryptor = Decryptor::<Aes256>::new(&key, Some(&iv)).expect("Key buffer is valid");
+        let encryptor = Encryptor::<Aes256>::new(&key, Some(&iv)).expect("Key buffer is valid");
+        let decryptor = Decryptor::<Aes256>::new(&key, Some(&iv)).expect("Key buffer is valid");
         buffer.fill(0);
         let result = encryptor.encrypt(&plain_text, &mut buffer);
         assert!(result.is_ok_and(|_| buffer == cipher_text));

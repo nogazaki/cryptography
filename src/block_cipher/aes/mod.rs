@@ -349,8 +349,7 @@ macro_rules! define_and_implement {
             ) {
                 let mut internal = block.clone();
                 aes_encrypt_block(&mut internal, &self.key);
-
-                out.clone_from_slice(&internal)
+                *out = internal
             }
             /// Decrypt a block
             fn decrypt_block(
@@ -360,8 +359,7 @@ macro_rules! define_and_implement {
             ) {
                 let mut internal = block.clone();
                 aes_decrypt_block(&mut internal, &self.key);
-
-                out.clone_from_slice(&internal)
+                *out = internal
             }
         }
         impl Drop for $name {
