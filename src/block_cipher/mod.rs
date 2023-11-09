@@ -7,7 +7,7 @@ pub mod aes;
 pub mod cbc;
 pub mod ecb;
 
-pub trait KeyInit {
+pub trait BlockCipherInit {
     /// Initialize the algorithm
     fn new(key: &[u8]) -> Result<Self, ErrorCode>
     where

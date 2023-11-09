@@ -1,14 +1,14 @@
 use super::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Encryptor<T: KeyInit + BlockCipher>
+pub struct Encryptor<T: BlockCipherInit + BlockCipher>
 where
     [(); T::BLOCK_SIZE]:,
 {
     engine: T,
     iv: [u8; T::BLOCK_SIZE],
 }
-impl<T: KeyInit + BlockCipher> Encryptor<T>
+impl<T: BlockCipherInit + BlockCipher> Encryptor<T>
 where
     [(); T::BLOCK_SIZE]:,
 {
@@ -23,7 +23,7 @@ where
         })
     }
 }
-impl<T: KeyInit + BlockCipher> Encrypt for Encryptor<T>
+impl<T: BlockCipherInit + BlockCipher> Encrypt for Encryptor<T>
 where
     [(); T::BLOCK_SIZE]:,
 {
@@ -53,14 +53,14 @@ where
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Decryptor<T: KeyInit + BlockCipher>
+pub struct Decryptor<T: BlockCipherInit + BlockCipher>
 where
     [(); T::BLOCK_SIZE]:,
 {
     engine: T,
     iv: [u8; T::BLOCK_SIZE],
 }
-impl<T: KeyInit + BlockCipher> Decryptor<T>
+impl<T: BlockCipherInit + BlockCipher> Decryptor<T>
 where
     [(); T::BLOCK_SIZE]:,
 {
@@ -75,7 +75,7 @@ where
         })
     }
 }
-impl<T: KeyInit + BlockCipher> Decrypt for Decryptor<T>
+impl<T: BlockCipherInit + BlockCipher> Decrypt for Decryptor<T>
 where
     [(); T::BLOCK_SIZE]:,
 {

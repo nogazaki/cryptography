@@ -1,11 +1,11 @@
 use super::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ECB<T: KeyInit + BlockCipher> {
+pub struct ECB<T: BlockCipherInit + BlockCipher> {
     engine: T,
 }
 
-impl<T: KeyInit + BlockCipher> ECB<T>
+impl<T: BlockCipherInit + BlockCipher> ECB<T>
 where
     [(); T::BLOCK_SIZE]:,
 {

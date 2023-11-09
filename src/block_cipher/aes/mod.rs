@@ -304,7 +304,7 @@ macro_rules! define_and_implement {
         /// # Example
         ///
         /// ```
-        /// use cryptography::block_cipher::{KeyInit, aes::*};
+        /// use cryptography::block_cipher::{BlockCipherInit, aes::*};
         ///
         #[doc = concat!("let cipher_key = [0u8; ", $key_size, " / 8];")]
         #[doc = concat!("let aes = Aes", $key_size, "::new(&cipher_key);")]
@@ -316,7 +316,7 @@ macro_rules! define_and_implement {
         pub struct $name {
             key: [u32; $key_size / 8 + 28],
         }
-        impl KeyInit for $name {
+        impl BlockCipherInit for $name {
             /// Initialize and schedule a key for the algorithm
             fn new(key: &[u8]) -> Result<Self, ErrorCode> {
                 if key.len() != $key_size / 8 {
