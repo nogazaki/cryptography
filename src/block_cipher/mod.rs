@@ -6,6 +6,7 @@ pub mod aes;
 
 pub mod cbc;
 pub mod ecb;
+pub mod pcbc;
 
 pub trait BlockCipherInit {
     /// Initialize the algorithm
