@@ -22,3 +22,9 @@ pub enum ErrorCode {
     #[default]
     Unknown,
 }
+
+// Utilities module
+mod utils;
+
+// Cryptographic hash functions module
+pub mod hash;
